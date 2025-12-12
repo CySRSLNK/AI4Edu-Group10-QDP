@@ -30,14 +30,14 @@ def train():
     dh.tab_printer(args, logger)
     
     # Load BERT tokenizer if using BERT
-    if args.use_bert:
-        logger.info("Loading BERT tokenizer...")
-        tokenizer = dh.load_bert_tokenizer(model_name=args.bert_model)
-        vocab_size = tokenizer.vocab_size
-        embedding_size = args.max_length
-        pretrained_embedding = None
+    logger.info("Loading BERT tokenizer...")
+    if args.bert_mod == 'local':
+        tokenizer = dh.load_bert_tokenizer(local_path=args.bert_path)
     else:
-        raise Exception('Error, you should loading BERT')
+        tokenizer = dh.load_bert_tokenizer(model_name=args.bert_name)
+    vocab_size = tokenizer.vocab_size
+    embedding_size = args.max_length
+    pretrained_embedding = None
 
     # Load data
     logger.info("Loading training data...")
