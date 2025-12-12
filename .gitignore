@@ -211,3 +211,10 @@ __marimo__/
 
 # data
 CJEval/
+
+# output
+runs/
+logs/
+
+# bert-model
+bert_models/

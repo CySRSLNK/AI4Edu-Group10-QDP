@@ -108,17 +108,22 @@ def create_prediction_file(save_dir, identifiers, predictions, task_type):
     out.to_csv(preds_file, index=None)
 
 
-def load_bert_tokenizer(model_name='bert-base-chinese'):
+def load_bert_tokenizer(model_name='bert-base-chinese', local_path=None):
     """
     加载BERT分词器
 
     Args:
         model_name: BERT模型名字
-    
+        loacl_path: BERT模型路径 
     Returns:
         BERT分词器实例
     """
-    tokenizer = BertTokenizer.from_pretrained(model_name)
+    if local_path:
+        print('Model used in local')
+        tokenizer = BertTokenizer.from_pretrained(local_path)
+    else:
+        print('Model get from net')
+        tokenizer = BertTokenizer.from_pretrained(model_name)
     return tokenizer
 
 def regression_eval(true_label, pred_label):
@@ -210,7 +215,7 @@ def conv_diff_to_value(difficulty_str, task_type, difficulty_map):
         if not matched:
             value = default_value
     
-    return int(value) if task_type == 'classification' else float(value)
+    return int(value) if task_type == 'classification' else float(value/4.0)
 
 
 def prepare_text(question_data, include_knowledge=True, include_analysis=False):

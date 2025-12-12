@@ -1,7 +1,4 @@
 # -*- coding:utf-8 -*-
-__author__ = 'randolph'
-
-"""TARNN layers."""
 
 import torch
 import numpy as np
@@ -13,6 +10,10 @@ from torch.autograd import Variable
 class BiRNNLayer(nn.Module):
     def __init__(self, input_units, rnn_type, rnn_layers, rnn_hidden_size, dropout_keep_prob):
         super(BiRNNLayer, self).__init__()
+        if rnn_layers == 1 and dropout_keep_prob > 0:
+            dropout_keep_prob = 0
+            print(f"[Warning] Single-layer RNN detected, setting dropout to 0 (was {dropout_keep_prob})")
+
         if rnn_type == 'LSTM':
             self.bi_rnn = nn.LSTM(input_size=input_units, hidden_size=rnn_hidden_size, num_layers=rnn_layers,
                                   batch_first=True, bidirectional=True, dropout=dropout_keep_prob)
@@ -34,6 +35,8 @@ class AttentionLayer(nn.Module):
     def forward(self, input_x, input_y):
         if self.att_type == 'normal':
             attention_matrix = torch.matmul(input_y, input_x.transpose(1, 2))
+            scaling_factor = torch.sqrt(torch.tensor(input_x.size(2), dtype=torch.float32, device=input_x.device))
+            attention_matrix = attention_matrix / scaling_factor
             attention_weight = torch.softmax(attention_matrix, dim=2)
             attention_visual = torch.mean(attention_matrix, dim=1)
             attention_out = torch.matmul(attention_weight, input_x)
@@ -126,7 +129,14 @@ class SimpleTARNN(nn.Module):
         self.num_classes = num_classes
         self.use_bert = use_bert
         self.bert_hidden_size = bert_hidden_size
-        
+        if self.use_bert:
+            from transformers import BertModel
+            if args.bert_mod == 'local':
+                self.bert = BertModel.from_pretrained(args.bert_path)
+            else:
+                self.bert = BertModel.from_pretrained(args.bert_name)
+        else:
+            self.bert = None
         self._setup_layers()
 
     def _setup_embedding_layer(self):
@@ -212,7 +222,12 @@ class SimpleTARNN(nn.Module):
         前向传播，适用于单文本输入
         """
         if self.use_bert:
-            embedded_sentence = input_ids
+            bert_outputs = self.bert(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids
+            )
+            embedded_sentence = bert_outputs.last_hidden_state
         else:
             embedded_sentence = self.embedding(input_ids)
         
@@ -232,7 +247,7 @@ class SimpleTARNN(nn.Module):
         # 输出层
         if self.task_type == 'regression':
             logits = self.out(h_drop).squeeze()
-            scores = torch.sigmoid(logits)  # 对于回归任务，将输出映射到0-1之间
+            scores =  logits
         else:  # classification
             logits = self.out(h_drop)
             scores = F.softmax(logits, dim=1)  # 对于分类任务，使用softmax
