@@ -89,7 +89,7 @@ def get_model_name():
     return MODEL
 
 
-def create_prediction_file(save_dir, identifiers, predictions):
+def create_prediction_file(save_dir, identifiers, predictions, task_type):
     """
     Create the prediction file.
 
@@ -100,6 +100,7 @@ def create_prediction_file(save_dir, identifiers, predictions):
     """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+    
     preds_file = os.path.abspath(os.path.join(save_dir, 'predictions.csv'))
     out = pd.DataFrame()
     out["id"] = identifiers
@@ -117,10 +118,10 @@ def load_bert_tokenizer(model_name='bert-base-chinese'):
     Returns:
         BERT分词器实例
     """
-    tokenizer = BertTokenizer.from_pertrained(model_name)
+    tokenizer = BertTokenizer.from_pretrained(model_name)
     return tokenizer
 
-def evaluation(true_label, pred_label):
+def regression_eval(true_label, pred_label):
     """
     Calculate the PCC & DOA.
 
@@ -336,7 +337,6 @@ def classification_eval(true_labels, pred_labes, num_classes=5):
 class QuestionDataset(torch.utils.data.Dataset):
     """
     单文本题目数据集类（适应你的数据格式）
-    新增类
     """
     def __init__(self, data, device, task_type):
         """
