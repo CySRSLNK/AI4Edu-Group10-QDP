@@ -7,12 +7,10 @@ def parameter_parser():
     parser = argparse.ArgumentParser(description="Run Model.")
 
     # Data Parameters
-    parser.add_argument('--train-file', nargs='?', default='../data/train.json', help='Training data.')
-    parser.add_argument('--validation-file', nargs='?', default='../data/validation.json', help='Validation data.')
-    parser.add_argument('--test-file', nargs='?', default='../data/test.json', help='Testing data.')
-    parser.add_argument('--word2vec-file', type=str, default=None, help='Word2Vec file path.')
+    parser.add_argument('--train-file', nargs='?', default='data/train.json', help='Training data.')
+    parser.add_argument('--validation-file', nargs='?', default='data/validation.json', help='Validation data.')
+    parser.add_argument('--test-file', nargs='?', default='data/test.json', help='Testing data.')
     parser.add_argument('--embedding-type', type=int, default=0, help='Embedding type (0: static, 1: non-static).')
-    parser.add_argument('--pad-seq-len', type=int, default=256, help='Padding sequence length.')
 
     # Model Parameters
     parser.add_argument('--rnn-type', type=str, default='LSTM', help='RNN type (LSTM or GRU).')
@@ -26,7 +24,7 @@ def parameter_parser():
     # Training Parameters
     parser.add_argument('--epochs', type=int, default=30, help='Number of training epochs.')
     parser.add_argument('--batch-size', type=int, default=32, help='Batch Size.')
-    parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate.')
+    parser.add_argument('--learning-rate', type=float, default=0.0005, help='Learning rate.')
     parser.add_argument('--decay-rate', type=float, default=0.95, help='Rate of decay for learning rate.')
     parser.add_argument('--decay-steps', type=int, default=500, help='How many steps before decay learning rate.')
     parser.add_argument("--norm-ratio", type=float, default=1.25,
@@ -39,10 +37,12 @@ def parameter_parser():
                        help='Task type: regression or classification.')
     parser.add_argument('--num-classes', type=int, default=5, 
                        help='Number of classes for classification task.')
-    parser.add_argument('--use-bert', type=bool, default=False, 
-                       help='Whether to use BERT embeddings.')
-    parser.add_argument('--bert-model', type=str, default='bert-base-chinese',
-                       help='BERT model name.')
+    parser.add_argument('--use-bert', type=bool, default=True, help='Use bert')
+    parser.add_argument('--bert-name', type=str, default='bert-base-chinese', help='name of bert model')
+    parser.add_argument('--bert-path', type=str, default='bert_models/bert-base-chinese', 
+                       help='the path of bert model')
+    parser.add_argument('--bert-mod', type=str, default='local',
+                       help='BERT mod (local or net)')
     parser.add_argument('--max-length', type=int, default=256,
                        help='Maximum sequence length.')
     parser.add_argument('--include-knowledge', type=bool, default=True,
