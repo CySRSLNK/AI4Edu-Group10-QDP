@@ -11,7 +11,7 @@ sys.path.append('../')
 
 from models.layers import SimpleTARNN, Loss
 from utils import checkmate as cm
-from utils import data_helpers as dh
+from utils import data_helper as dh
 from utils import param_parser as parser
 from tqdm import tqdm, trange
 from torch.utils.tensorboard import SummaryWriter
@@ -23,7 +23,7 @@ args = parser.parameter_parser()
 OPTION = dh.option()
 logger = dh.logger_fn("ptlog", "logs/{0}-{1}.log".format('Train' if OPTION == 'T' else 'Restore', time.asctime()))
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+print(f"Using the device is {device}")
 
 def train():
     """Training SimpleTARNN model for single text difficulty prediction."""
