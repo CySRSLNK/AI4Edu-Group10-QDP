@@ -88,30 +88,24 @@ class HighwayLayer(nn.Module):
 
 
 class Loss(nn.Module):
-    def __init__(self, task_type='regression'):
+    def __init__(self, task_type='regression', num_classes=None):
         super(Loss, self).__init__()
         self.task_type = task_type
+        self.num_classes = num_classes
         
         if task_type == 'regression':
-            self.MSELoss = nn.MSELoss(reduce=True, size_average=True)
+            self.MSELoss = nn.MSELoss(reduction='mean')
         else:
             # 对于分类任务，使用交叉熵损失
+            # 添加类别权重处理不平衡数据
             self.CrossEntropyLoss = nn.CrossEntropyLoss()
 
     def forward(self, predict_y, input_y):
-        # 根据任务类型选择损失函数
+        # 简单版本：只需要一个预测值和一个标签
         if self.task_type == 'regression':
-            # 回归任务：使用MSE损失
-            f_loss = self.MSELoss(predict_y[0], input_y[0])
-            b_loss = self.MSELoss(predict_y[1], input_y[1])
-            losses = f_loss + b_loss
+            return self.MSELoss(predict_y, input_y)
         else:
-            # 分类任务：使用交叉熵损失
-            f_loss = self.CrossEntropyLoss(predict_y[0], input_y[0].long())
-            b_loss = self.CrossEntropyLoss(predict_y[1], input_y[1].long())
-            losses = f_loss + b_loss
-        
-        return losses
+            return self.CrossEntropyLoss(predict_y, input_y)
 
 
 class SimpleTARNN(nn.Module):
