@@ -23,8 +23,8 @@ def parameter_parser():
     
     # Training Parameters
     parser.add_argument('--epochs', type=int, default=30, help='Number of training epochs.')
-    parser.add_argument('--batch-size', type=int, default=16, help='Batch Size.')
-    parser.add_argument('--learning-rate', type=float, default=0.00001, help='Learning rate.')
+    parser.add_argument('--batch-size', type=int, default=32, help='Batch Size.')
+    parser.add_argument('--learning-rate', type=float, default=2e-5, help='Learning rate.')
     parser.add_argument('--decay-rate', type=float, default=0.95, help='Rate of decay for learning rate.')
     parser.add_argument('--decay-steps', type=int, default=500, help='How many steps before decay learning rate.')
     parser.add_argument("--norm-ratio", type=float, default=1.25,
