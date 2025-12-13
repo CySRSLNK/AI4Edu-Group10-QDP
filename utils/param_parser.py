@@ -14,7 +14,7 @@ def parameter_parser():
 
     # Model Parameters
     parser.add_argument('--rnn-type', type=str, default='LSTM', help='RNN type (LSTM or GRU).')
-    parser.add_argument('--rnn-layers', type=int, default=1, help='Number of RNN layers.')
+    parser.add_argument('--rnn-layers', type=int, default=2, help='Number of RNN layers.')
     parser.add_argument('--rnn-dim', type=int, default=28, help='RNN hidden dimension.')
     parser.add_argument('--attention-dim', type=int, default=128, help='Attention dimension.')
     parser.add_argument('--attention-type', type=str, default='normal', help='Attention type (normal, cosine, mlp).')
