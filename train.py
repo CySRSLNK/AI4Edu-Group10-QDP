@@ -7,8 +7,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-sys.path.append('../')
-
 from models.layers import SimpleTARNN, Loss
 from utils import checkmate as cm
 from utils import data_helper as dh
@@ -84,9 +82,9 @@ def train():
         bert_hidden_size=768 if args.use_bert else None
     ).to(device)
 
-    print("Model's state_dict:")
-    for param_tensor in net.state_dict():
-        print(f"{param_tensor}\t{net.state_dict()[param_tensor].size()}")
+    # print("Model's state_dict:")
+    # for param_tensor in net.state_dict():
+    #     print(f"{param_tensor}\t{net.state_dict()[param_tensor].size()}")
 
     criterion = Loss(task_type=args.task_type)
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.l2_lambda)
