@@ -69,6 +69,8 @@ def tab_printer(args, logger):
     args = vars(args)
     keys = sorted(args.keys())
     t = Texttable()
+    t.set_max_width(0)
+    t.set_precision(5)
     t.add_rows([[k.replace("_", " ").capitalize(), args[k]] for k in keys])
     t.add_rows([["Parameter", "Value"]])
     logger.info('\n' + t.draw())
@@ -89,7 +91,7 @@ def get_model_name():
     return MODEL
 
 
-def create_prediction_file(save_dir, identifiers, predictions, task_type):
+def create_prediction_file(save_dir, identifiers, predictions):
     """
     Create the prediction file.
 
