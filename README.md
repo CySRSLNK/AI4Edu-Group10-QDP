@@ -1,6 +1,29 @@
 # AI4Edu-Group10-QDP
 
-### **项目简介**：这是一个题目难度预测的模型，使用了`Bert-base-chinese` + `BiLSTM` + `Attention` + `HighwayNetwork`
+### **项目简介**：这是一个题目难度预测的模型
+
+### 该模型使用了`Bert-base-chinese` + `BiLSTM` + `Attention` + `HighwayNetwork`
+
+该项目会预测出题目的五个难度，分别是容易，较易，一般，较难，困难
+
+目录列表
+
+```txt
+AI4Edu-Group10-QDP
+├── app.py
+├── assert # Loss和其他评估的图片
+├── data
+│   └── test/train/validation # 测试集/训练集/验证集
+├── models # 模型代码
+├── test.py # 测试代码
+├── train.py # 训练代码
+├── utils # 工具库
+│    ├── checkmate.py
+│    ├── data_helper.py
+│    └── param_parser.py
+├── README.md
+└──requirements.txt # 依赖
+```
 
 #### **小组成员**：
 
@@ -72,7 +95,7 @@ python test.py --help
 
 参数
 
-```bash
+```txt
 python train.py/test.py --help
 usage: train.py [-h] [--train-file [TRAIN_FILE]] [--validation-file [VALIDATION_FILE]] [--test-file [TEST_FILE]]
                 [--rnn-layers RNN_LAYERS] [--rnn-dim RNN_DIM] [--attention-dim ATTENTION_DIM]
