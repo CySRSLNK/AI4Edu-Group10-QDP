@@ -14,7 +14,7 @@ from utils import param_parser as parser
 from tqdm import tqdm, trange
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, precision_recall_fscore_support, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 
 
 args = parser.parameter_parser()
@@ -34,16 +34,12 @@ def train():
     else:
         tokenizer = dh.load_bert_tokenizer(model_name=args.bert_name)
     vocab_size = tokenizer.vocab_size
-    embedding_size = args.max_length
-    pretrained_embedding = None
 
     # Load data
     logger.info("Loading training data...")
     train_data = dh.load_question_data_single(
         data_file=args.train_file,
         tokenizer=tokenizer,
-        task_type=args.task_type,
-        max_length=args.max_length,
         include_knowledge=args.include_knowledge,
         include_analysis=args.include_analysis
     )
@@ -52,16 +48,14 @@ def train():
     val_data = dh.load_question_data_single(
         data_file=args.validation_file,
         tokenizer=tokenizer,
-        task_type=args.task_type,
-        max_length=args.max_length,
         include_knowledge=args.include_knowledge,
         include_analysis=args.include_analysis
     )
 
     # Create datasets
     logger.info("Creating datasets...")
-    train_dataset = dh.QuestionDataset(train_data, device, args.task_type)
-    val_dataset = dh.QuestionDataset(val_data, device, args.task_type)
+    train_dataset = dh.QuestionDataset(train_data, device)
+    val_dataset = dh.QuestionDataset(val_data, device)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
@@ -74,20 +68,18 @@ def train():
     net = SimpleTARNN(
         args=args,
         vocab_size=vocab_size,
-        embedding_size=embedding_size,
-        pretrained_embedding=pretrained_embedding,
-        task_type=args.task_type,
         num_classes=args.num_classes,
-        use_bert=args.use_bert,
-        bert_hidden_size=768 if args.use_bert else None
+        bert_hidden_size=768
     ).to(device)
 
     # print("Model's state_dict:")
     # for param_tensor in net.state_dict():
     #     print(f"{param_tensor}\t{net.state_dict()[param_tensor].size()}")
 
-    criterion = Loss(task_type=args.task_type)
+    criterion = Loss()
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.l2_lambda)
+    from torch.optim.lr_scheduler import ReduceLROnPlateau
+    scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
     if OPTION == 'T':
         timestamp = str(int(time.time()))
@@ -124,65 +116,39 @@ def train():
                 
                 logits, scores = net(input_ids, attention_mask, token_type_ids)
                 
-                if args.task_type == 'regression':
-                    loss = nn.MSELoss()(scores.squeeze(), labels)
-                    true_labels.extend(labels.cpu().numpy())
-                    predicted_scores.extend(scores.squeeze().cpu().numpy())
-                else:
-                    loss = nn.CrossEntropyLoss()(logits, labels)
-                    true_labels.extend(labels.cpu().numpy())
-                    predicted_scores.extend(torch.argmax(scores, dim=1).cpu().numpy())
+                loss = criterion(logits, labels)
+                true_labels.extend(labels.cpu().numpy())
+                predicted_scores.extend(torch.argmax(scores, dim=1).cpu().numpy())
                 
                 eval_loss += loss.item()
 
         eval_loss = eval_loss / len(val_loader)
         
-        # Calculate metrics based on task type
-        if args.task_type == 'regression':
-            # Regression metrics
-            eval_rmse = mean_squared_error(true_labels, predicted_scores) ** 0.5
-            eval_r2 = r2_score(true_labels, predicted_scores)
-            eval_pcc, eval_doa = dh.regression_eval(true_labels, predicted_scores)
+        accuracy = accuracy_score(true_labels, predicted_scores)
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            true_labels, predicted_scores, average='weighted', zero_division=0
+        )
+        conf_matrix = confusion_matrix(true_labels, predicted_scores, labels=range(args.num_classes))
             
-            logger.info(f"Validation - Loss: {eval_loss:.4f} | PCC: {eval_pcc:.4f} | DOA: {eval_doa:.4f} | "
-                       f"RMSE: {eval_rmse:.4f} | R2: {eval_r2:.4f}")
+        logger.info(f"Validation - Loss: {eval_loss:.4f} | Accuracy: {accuracy:.4f} | "
+                    f"Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1:.4f}")
+        logger.info(f"Confusion Matrix:\n{conf_matrix}")
             
-            writer.add_scalar('validation/loss', eval_loss, epoch)
-            writer.add_scalar('validation/PCC', eval_pcc, epoch)
-            writer.add_scalar('validation/DOA', eval_doa, epoch)
-            writer.add_scalar('validation/RMSE', eval_rmse, epoch)
-            writer.add_scalar('validation/R2', eval_r2, epoch)
+        writer.add_scalar('validation/loss', eval_loss, epoch)
+        writer.add_scalar('validation/accuracy', accuracy, epoch)
+        writer.add_scalar('validation/precision', precision, epoch)
+        writer.add_scalar('validation/recall', recall, epoch)
+        writer.add_scalar('validation/f1', f1, epoch)
             
-            cur_value = eval_rmse  # Use RMSE for checkpoint saving (lower is better)
-            
-        else:
-            # Classification metrics
-            accuracy = accuracy_score(true_labels, predicted_scores)
-            precision, recall, f1, _ = precision_recall_fscore_support(
-                true_labels, predicted_scores, average='weighted', zero_division=0
-            )
-            conf_matrix = confusion_matrix(true_labels, predicted_scores, labels=range(args.num_classes))
-            
-            logger.info(f"Validation - Loss: {eval_loss:.4f} | Accuracy: {accuracy:.4f} | "
-                       f"Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1:.4f}")
-            logger.info(f"Confusion Matrix:\n{conf_matrix}")
-            
-            writer.add_scalar('validation/loss', eval_loss, epoch)
-            writer.add_scalar('validation/accuracy', accuracy, epoch)
-            writer.add_scalar('validation/precision', precision, epoch)
-            writer.add_scalar('validation/recall', recall, epoch)
-            writer.add_scalar('validation/f1', f1, epoch)
-            
-            cur_value = accuracy  # Use accuracy for checkpoint saving (higher is better)
-        
+        cur_value = accuracy  # Use accuracy for checkpoint saving (higher is better)
         return cur_value
 
     # Training loop
-    for epoch in tqdm(range(args.epochs), desc="Epochs", leave=True):
+    for epoch in tqdm(range(args.epochs), desc="Epochs", leave=False):
         net.train()
         epoch_loss = 0.0
         
-        batches = trange(len(train_loader), desc=f"Epoch {epoch+1}", leave=True)
+        batches = trange(len(train_loader), desc=f"Epoch {epoch+1}", leave=False)
         for batch_cnt, batch in zip(batches, train_loader):
             optimizer.zero_grad()
             
@@ -190,14 +156,10 @@ def train():
             attention_mask = batch['attention_mask']
             token_type_ids = batch['token_type_ids']
             labels = batch['labels']
-            
+            optimizer.zero_grad()
             logits, scores = net(input_ids, attention_mask, token_type_ids)
-            
-            if args.task_type == 'regression':
-                loss = nn.MSELoss()(scores.squeeze(), labels)
-            else:
-                loss = nn.CrossEntropyLoss()(logits, labels)
-            
+
+            loss = criterion(logits, labels)
             loss.backward()
             optimizer.step()
             
@@ -210,6 +172,7 @@ def train():
         
         # Evaluation
         cur_value = eval_model(val_loader, epoch)
+        scheduler.step(cur_value)
         saver.handle(cur_value, net, optimizer, epoch)
     
     writer.close()
