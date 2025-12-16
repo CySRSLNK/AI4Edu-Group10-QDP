@@ -8,19 +8,14 @@ from torch.autograd import Variable
 
 
 class BiRNNLayer(nn.Module):
-    def __init__(self, input_units, rnn_type, rnn_layers, rnn_hidden_size, dropout_keep_prob):
+    def __init__(self, input_units, rnn_layers, rnn_hidden_size, dropout_keep_prob):
         super(BiRNNLayer, self).__init__()
         if rnn_layers == 1 and dropout_keep_prob > 0:
             dropout_keep_prob = 0
             print(f"[Warning] Single-layer RNN detected, setting dropout to 0 (was {dropout_keep_prob})")
-
-        if rnn_type == 'LSTM':
-            self.bi_rnn = nn.LSTM(input_size=input_units, hidden_size=rnn_hidden_size, num_layers=rnn_layers,
-                                  batch_first=True, bidirectional=True, dropout=dropout_keep_prob)
-        if rnn_type == 'GRU':
-            self.bi_rnn = nn.GRU(input_size=input_units, hidden_size=rnn_hidden_size, num_layers=rnn_layers,
-                                 batch_first=True, bidirectional=True, dropout=dropout_keep_prob)
-
+        self.bi_rnn = nn.LSTM(input_size=input_units, hidden_size=rnn_hidden_size, num_layers=rnn_layers,
+                                batch_first=True, bidirectional=True, dropout=dropout_keep_prob)
+        
     def forward(self, input_x):
         rnn_out, _ = self.bi_rnn(input_x)
         rnn_avg = torch.mean(rnn_out, dim=1)
@@ -88,82 +83,46 @@ class HighwayLayer(nn.Module):
 
 
 class Loss(nn.Module):
-    def __init__(self, task_type='regression', num_classes=None):
+    def __init__(self, num_classes=None):
         super(Loss, self).__init__()
-        self.task_type = task_type
         self.num_classes = num_classes
-        
-        if task_type == 'regression':
-            self.MSELoss = nn.MSELoss(reduction='mean')
-        else:
-            # 对于分类任务，使用交叉熵损失
-            # 添加类别权重处理不平衡数据
-            self.CrossEntropyLoss = nn.CrossEntropyLoss()
+        self.CrossEntropyLoss = nn.CrossEntropyLoss()
 
     def forward(self, predict_y, input_y):
-        # 简单版本：只需要一个预测值和一个标签
-        if self.task_type == 'regression':
-            return self.MSELoss(predict_y, input_y)
-        else:
-            return self.CrossEntropyLoss(predict_y, input_y)
+        return self.CrossEntropyLoss(predict_y, input_y)
 
 
 class SimpleTARNN(nn.Module):
     """
     简化版的TARNN,用于单文本输入(适用于你的数据格式)
     """
-    def __init__(self, args, vocab_size, embedding_size, pretrained_embedding=None, 
-                 task_type='regression', num_classes=5, use_bert=False,bert_hidden_size=768):
+    def __init__(self, args, vocab_size, num_classes=5, bert_hidden_size=768):
         super(SimpleTARNN, self).__init__()
         self.args = args
         self.vocab_size = vocab_size
-        self.embedding_size = embedding_size
-        self.pretrained_embedding = pretrained_embedding
-        self.task_type = task_type
         self.num_classes = num_classes
-        self.use_bert = use_bert
         self.bert_hidden_size = bert_hidden_size
-        if self.use_bert:
-            from transformers import BertModel
-            if args.bert_mod == 'local':
-                self.bert = BertModel.from_pretrained(args.bert_path)
-            else:
-                self.bert = BertModel.from_pretrained(args.bert_name)
+        from transformers import BertModel
+        if args.bert_mod == 'local':
+            self.bert = BertModel.from_pretrained(args.bert_path)
         else:
-            self.bert = None
+            self.bert = BertModel.from_pretrained(args.bert_name)
         self._setup_layers()
 
     def _setup_embedding_layer(self):
         """
         Creating Embedding layers.
         """
-        if self.use_bert:
-            # 如果使用BERT，嵌入层将在外部处理
-            self.embedding = None
-        else:
-            if self.pretrained_embedding is None:
-                embedding_weight = torch.FloatTensor(np.random.uniform(-1, 1, size=(self.vocab_size, self.embedding_size)))
-                embedding_weight = torch.nn.Parameter(embedding_weight, requires_grad=True)
-            else:
-                if self.args.embedding_type == 0:
-                    embedding_weight = torch.from_numpy(self.pretrained_embedding).float()
-                if self.args.embedding_type == 1:
-                    embedding_weight = torch.nn.Parameter(torch.from_numpy(self.pretrained_embedding).float(), requires_grad=True)
-            self.embedding = nn.Embedding(self.vocab_size, self.embedding_size, _weight=embedding_weight)
-
+        self.embedding = None
+       
     def _setup_bi_rnn_layer(self):
         """
         Creating Bi-RNN Layer.
         """
-        if self.use_bert:
-            # BERT的输出维度通常是768
-            rnn_input_size = self.bert_hidden_size
-        else:
-            rnn_input_size = self.embedding_size
-            
-        self.word_bi_rnn = BiRNNLayer(input_units=rnn_input_size, rnn_type=self.args.rnn_type,
-                                 rnn_layers=self.args.rnn_layers, rnn_hidden_size=self.args.rnn_dim,
-                                 dropout_keep_prob=self.args.dropout_rate)
+        rnn_input_size = self.bert_hidden_size
+
+        self.word_bi_rnn = BiRNNLayer(input_units=rnn_input_size, rnn_layers=self.args.rnn_layers, 
+                                      rnn_hidden_size=self.args.rnn_dim, dropout_keep_prob=self.args.dropout_rate)
         
     def _setup_hierarchical_attention(self):
         """
@@ -187,12 +146,7 @@ class SimpleTARNN(nn.Module):
          """
         # BiRNN输出是双向的，所以维度是2 * rnn_dim
         self.fc1 = nn.Linear(in_features=self.args.rnn_dim * 2, out_features=self.args.fc_dim, bias=True)
-        
-        # 根据任务类型设置输出层
-        if self.task_type == 'regression':
-            self.out = nn.Linear(in_features=self.args.fc_dim, out_features=1, bias=True)
-        else:  # classification
-            self.out = nn.Linear(in_features=self.args.fc_dim, out_features=self.num_classes, bias=True)
+        self.out = nn.Linear(in_features=self.args.fc_dim, out_features=self.num_classes, bias=True)
 
     def _setup_dropout(self):
         """
@@ -211,19 +165,16 @@ class SimpleTARNN(nn.Module):
         self._setup_fc_layer()
         self._setup_dropout()
 
-    def forward(self, input_ids, attention_mask=None, token_type_ids=None, sentence_boundaries=None):
+    def forward(self, input_ids, attention_mask=None, token_type_ids=None):
         """
         前向传播，适用于单文本输入
         """
-        if self.use_bert:
-            bert_outputs = self.bert(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids
-            )
-            embedded_sentence = bert_outputs.last_hidden_state
-        else:
-            embedded_sentence = self.embedding(input_ids)
+        bert_outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids
+        )
+        embedded_sentence = bert_outputs.last_hidden_state
         
         word_rnn_out, word_rnn_avg = self.word_bi_rnn(embedded_sentence)
         word_attention_visual, word_attention_out = self.word_attention(word_rnn_out, word_rnn_out)
@@ -239,11 +190,8 @@ class SimpleTARNN(nn.Module):
         h_drop = self.dropout(highway_out)
 
         # 输出层
-        if self.task_type == 'regression':
-            logits = self.out(h_drop).squeeze()
-            scores =  logits
-        else:  # classification
-            logits = self.out(h_drop)
-            scores = F.softmax(logits, dim=1)  # 对于分类任务，使用softmax
+
+        logits = self.out(h_drop)
+        scores = F.softmax(logits, dim=1)
 
         return logits, scores

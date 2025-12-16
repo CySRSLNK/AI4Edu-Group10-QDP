@@ -69,6 +69,8 @@ def tab_printer(args, logger):
     args = vars(args)
     keys = sorted(args.keys())
     t = Texttable()
+    t.set_max_width(0)
+    t.set_precision(5)
     t.add_rows([[k.replace("_", " ").capitalize(), args[k]] for k in keys])
     t.add_rows([["Parameter", "Value"]])
     logger.info('\n' + t.draw())
@@ -89,7 +91,7 @@ def get_model_name():
     return MODEL
 
 
-def create_prediction_file(save_dir, identifiers, predictions, task_type):
+def create_prediction_file(save_dir, identifiers, predictions):
     """
     Create the prediction file.
 
@@ -126,38 +128,6 @@ def load_bert_tokenizer(model_name='bert-base-chinese', local_path=None):
         tokenizer = BertTokenizer.from_pretrained(model_name)
     return tokenizer
 
-def regression_eval(true_label, pred_label):
-    """
-    Calculate the PCC & DOA.
-
-    Args:
-        true_label: The true labels
-        pred_label: The predicted labels
-    Returns:
-        The value of PCC & DOA
-    """
-    # compute pcc
-    pcc, _ = stats.pearsonr(pred_label, true_label)
-    if math.isnan(pcc):
-        print('[Error]: PCC=nan', true_label, pred_label)
-    # compute doa
-    n = 0
-    correct_num = 0
-    for i in range(len(true_label) - 1):
-        for j in range(i + 1, len(true_label)):
-            if (true_label[i] > true_label[j]) and (pred_label[i] > pred_label[j]):
-                correct_num += 1
-            elif (true_label[i] == true_label[j]) and (pred_label[i] == pred_label[j]):
-                continue
-            elif (true_label[i] < true_label[j]) and (pred_label[i] < pred_label[j]):
-                correct_num += 1
-            n += 1
-    if n == 0:
-        print(true_label)
-        return -1, -1
-    doa = correct_num / n
-    return pcc, doa
-
 
 def get_diff_map():
     """
@@ -176,7 +146,7 @@ def get_diff_map():
     return difficult_mapping
 
 
-def conv_diff_to_value(difficulty_str, task_type, difficulty_map):
+def conv_diff_to_value(difficulty_str, difficulty_map):
     """
     将难度字符串转换为数值
  
@@ -191,7 +161,7 @@ def conv_diff_to_value(difficulty_str, task_type, difficulty_map):
     if difficulty_map is None:
         difficulty_map = get_diff_map()
     
-    default_value = 2 if task_type == 'classification' else 2.0
+    default_value = 2
     difficulty_str = difficulty_str.strip()
     
     if difficulty_str in difficulty_map:
@@ -206,8 +176,8 @@ def conv_diff_to_value(difficulty_str, task_type, difficulty_map):
         
         if not matched:
             value = default_value
-    
-    return int(value) if task_type == 'classification' else float(value/4.0)
+    # print(f"原始难度: {difficulty_str} → 映射值: {value}")
+    return value
 
 
 def prepare_text(question_data, include_knowledge=True, include_analysis=False):
@@ -234,7 +204,7 @@ def prepare_text(question_data, include_knowledge=True, include_analysis=False):
     return text
 
 
-def load_question_data_single(data_file, tokenizer, task_type, max_length = 256,
+def load_question_data_single(data_file, tokenizer, max_length = 256,
                              include_knowledge = True, include_analysis = False, difficulty_map = None):
     """
     加载单文本题目数据（适应你的数据格式）
@@ -242,7 +212,6 @@ def load_question_data_single(data_file, tokenizer, task_type, max_length = 256,
     Args:
         data_file: 数据文件路径
         tokenizer: 分词器(BERT或自定义)
-        task_type: 任务类型 ('classification' 或 'regression')
         max_length: 最大序列长度
         include_knowledge: 是否包含知识点
         include_analysis: 是否包含解析
@@ -290,7 +259,7 @@ def load_question_data_single(data_file, tokenizer, task_type, max_length = 256,
                     raise NotImplementedError("Currently only BERT tokenizer is supported for single text mode")
 
                 difficulty_str = question_data.get('ques_difficulty', '一般')
-                label_value = conv_diff_to_value(difficulty_str, task_type, difficulty_map)
+                label_value = conv_diff_to_value(difficulty_str, difficulty_map)
                 
                 processed_data['labels'].append(label_value)
                 processed_data['original_difficulties'].append(difficulty_str)
@@ -335,7 +304,7 @@ class QuestionDataset(torch.utils.data.Dataset):
     """
     单文本题目数据集类（适应你的数据格式）
     """
-    def __init__(self, data, device, task_type):
+    def __init__(self, data, device):
         """
         初始化数据集
         
@@ -344,17 +313,12 @@ class QuestionDataset(torch.utils.data.Dataset):
             device: 设备 ('cpu' 或 'cuda')
             task_type: 任务类型 ('classification' 或 'regression')
         """
-        self.device = device
-        self.task_type = task_type
-        
+        self.device = device        
         self.input_ids = torch.stack(data['input_ids'])
         self.attention_mask = torch.stack(data['attention_mask'])
         self.token_type_ids = torch.stack(data['token_type_ids'])
         
-        if task_type == 'regression':
-            self.labels = torch.tensor(data['labels'], dtype=torch.float32)
-        else:  # classification
-            self.labels = torch.tensor(data['labels'], dtype=torch.long)
+        self.labels = torch.tensor(data['labels'], dtype=torch.long)
         
         self.question_ids = data['question_ids']
         self.subjects = data['subjects']
@@ -363,7 +327,6 @@ class QuestionDataset(torch.utils.data.Dataset):
         self.text_lengths = data['text_lengths']
         
         print(f"数据集已创建: {len(self.labels)} 个样本")
-        print(f"任务类型: {task_type}")
         print(f"标签类型: {self.labels.dtype}")
  
     def __len__(self):

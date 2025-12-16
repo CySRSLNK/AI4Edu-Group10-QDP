@@ -211,14 +211,13 @@ __marimo__/
 
 # data
 CJEval/
-data/test/test_*.json
-data/train/train_*json
-data/validation/valid_*.json
+data/test/test*
+data/train/train*
+data/validation/valid*
+bert_models/
 
 # output
 runs/
 logs/
 outputs/
-
-# bert-model
-bert_models/
+saved_models/
