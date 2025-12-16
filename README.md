@@ -129,8 +129,8 @@ streamlit run app.py
 
 这是在Dataset A上做的测试结果，可以发现效果很好
 
-![bestloss](D:\TestProgram\python\一体化实践II\HomeWork\AI\Lossimage\bestloss.png)
+![bestloss](assert/bestloss.png)
 
 这是在Dataset B上做的测试的结果，发现训练损失下降，但验证损失一直上升，主要是模型参数和训练集分布不好
 
-![badloss](D:\TestProgram\python\一体化实践II\HomeWork\AI\Lossimage\badloss.png)
+![badloss](assert/badloss.png)
