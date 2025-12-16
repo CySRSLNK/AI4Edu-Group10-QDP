@@ -40,7 +40,9 @@ transformers==4.57.3
 streamlit==1.52.1
 ```
 
-数据集采用的是`CJEval` 下载地址：https://github.com/SmileWHC/CJEval，我们对数据集进行了整合和标签数目的均分
+数据集采用的是`CJEval` 下载地址：https://github.com/SmileWHC/CJEval
+
+我们对数据集进行了整合和标签数目的均分
 
 #### 使用说明：
 
@@ -127,8 +129,8 @@ streamlit run app.py
 
 这是在Dataset A上做的测试结果，可以发现效果很好
 
-![bestloss](C:\Users\cs\Pictures\bestloss.png)
+![bestloss](D:\TestProgram\python\一体化实践II\HomeWork\AI\Lossimage\bestloss.png)
 
 这是在Dataset B上做的测试的结果，发现训练损失下降，但验证损失一直上升，主要是模型参数和训练集分布不好
 
-![badloss](C:\Users\cs\Pictures\badloss.png)
+![badloss](D:\TestProgram\python\一体化实践II\HomeWork\AI\Lossimage\badloss.png)
