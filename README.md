@@ -8,19 +8,19 @@
 
 目录列表
 
-```txt
+```
 AI4Edu-Group10-QDP
 ├── app.py
 ├── assert # Loss和其他评估的图片
 ├── data
-│   └── test/train/validation # 测试集/训练集/验证集
+│   └── test/train/validation # 测试集/训练集/验证集
 ├── models # 模型代码
 ├── test.py # 测试代码
 ├── train.py # 训练代码
 ├── utils # 工具库
-│    ├── checkmate.py
-│    ├── data_helper.py
-│    └── param_parser.py
+│    ├── checkmate.py
+│    ├── data_helper.py
+│    └── param_parser.py
 ├── README.md
 └──requirements.txt # 依赖
 ```
@@ -95,7 +95,7 @@ python test.py --help
 
 参数
 
-```txt
+```bash
 python train.py/test.py --help
 usage: train.py [-h] [--train-file [TRAIN_FILE]] [--validation-file [VALIDATION_FILE]] [--test-file [TEST_FILE]]
                 [--rnn-layers RNN_LAYERS] [--rnn-dim RNN_DIM] [--attention-dim ATTENTION_DIM]
